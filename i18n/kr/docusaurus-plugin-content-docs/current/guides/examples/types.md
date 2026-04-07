@@ -2,19 +2,23 @@
 sidebar_position: 2
 ---
 
-# 타입
+# Types
 
-이 가이드는 Typescript와 같은 정적 타입 언어의 데이터 타입을 다루는 방법과 FSD 구조 내에서 타입이 어떻게 활용되는지 설명합니다.
+이 가이드는 TypeScript 같은 정적 타입 언어에서 **데이터를 어떻게 정의하고 활용할지**,  
+그리고 FSD 구조 안에서 **각 타입을 어디에 배치하는 것이 좋은지**를 설명합니다.
 
 :::info
 
-이 가이드에서 다루지 않는 질문이 있으신가요? 오른쪽 파란색 버튼을 눌러 피드백을 남겨주세요. 여러분의 의견을 반영해 가이드를 확장해 나가겠습니다! 
+더 궁금한 점이 있나요?  
+페이지 우측의 피드백 버튼을 눌러 의견을 남겨 주세요.  
+여러분의 제안은 이 문서를 개선하는 데 큰 도움이 됩니다!
 
 :::
 
-## 유틸리티 타입 
+## 유틸리티 타입
 
-유틸리티 타입은 자체로 큰 의미를 가지지는 않지만, 다른 타입과 자주 사용되는 경우가 많은 타입입니다. 예를 들어, 배열의 값을 나타내는 ArrayValues 타입을 정의할 수 있습니다. 
+유틸리티 타입은 **그 자체로 큰 의미를 가지기보다는, 다른 타입과 함께 자주 사용되는 보조 타입**을 말합니다.  
+예를 들어, 배열에서 요소 타입만 추출하는 `ArrayValues` 같은 타입을 아래와 같이 정의할 수 있습니다.
 
 <figure>
 
@@ -28,167 +32,225 @@ type ArrayValues<T extends readonly unknown[]> = T[number];
 
 </figure>
 
-프로젝트에서 이러한 유틸리티 타입을 활용하려면, [`type-fest`][ext-type-fest] 같은 라이브러리를 설치하거나, 직접 `shared/lib`에 유틸리티 타입을 모아 라이브러리를 구축할 수 있습니다. 새로 추가할 타입과 이 라이브러리에 속하지 않는 타입을 명확하게 구분하는 것이 중요합니다. 예를 들어, 이를 `shared/lib/utility-types`로 수정하고 유틸리티 타입들에 대한 설명을 포함한 README 파일을 추가하는 것도 좋은 방법입니다. 
+프로젝트 전체에서 유틸리티 타입을 사용하려면 두 가지 접근이 있습니다.
 
-하지만 유틸리티 타입을 너무 많이 재사용하려고 하지 않는 것도 중요합니다. 재사용할 수 있다고 해서 꼭 모든 곳에서 사용할 필요는 없습니다. 모든 유틸리티 타입을 공유 폴더에 넣기보다는, 상황에 따라 필요한 파일 가까에에 두는 것이 더 좋을 떄도 있습니다. 
+1. **외부 라이브러리 설치**  
+   대표적으로 [`type-fest`](https://github.com/sindresorhus/type-fest)를 설치해서 사용합니다.
 
+2. **내부 유틸리티 타입 라이브러리 구축**  
+   `shared/lib/utility-types` 폴더를 만들고, README에 다음 내용을 명확히 적어 두세요.
+    - 우리 팀에서 **유틸리티 타입**이라고 부르는 기준
+    - 어떤 타입을 추가/제외할지에 대한 규칙
+
+> 유틸리티 타입의 **재사용 가능성**을 과대평가하지 마세요.  
+> **재사용 가능하다**는 이유만으로 꼭 전역(`shared`)에 둘 필요는 없습니다.
+
+유틸리티 타입은 아래처럼 **실제 사용되는 위치 근처**에 두는 것이 오히려 유지보수에 유리한 경우가 많습니다.
+
+```bash
 - 📂 pages
-  - 📂 home
-    - 📂 api
-      - 📄 ArrayValues.ts (유틸리티 타입)
-      - 📄 getMemoryUsageMetrics.ts (유틸리티 타입을 사용하는 코드)
+    - 📂 home
+        - 📂 api
+            - 📄 ArrayValues.ts (유틸리티 타입)
+            - 📄 getMemoryUsageMetrics.ts (유틸리티 타입을 사용하는 코드)
+```
 
 :::warning
-
-`shared/types` 폴더를 생성하거나 각 슬라이스에 `types`라는 세그먼트를 추가하고 싶은 마음이 들 수 있지만, 그렇게 하지 않는 것이 좋습니다.<br/>
-`types`라는 카테고리는 `components`나 `hooks`와 마찬가지로 내용이 무엇인지를 설명할 뿐, 코드의 목적을 명확히 설명하지 않습니다. 슬라이스는 해당 코드의 목적을 정확히 설명할 수 있어야 합니다.
-
+`shared/types` 폴더를 만들거나, 각 slice 안에 `types` segment를 따로 두고 싶을 수 있습니다.  
+하지만 **types라는 이름만으로는 해당 코드의 “목적”이 드러나지 않습니다.**  
+segment나 폴더는 “무엇을 담는지”가 아니라 **왜 존재하는지(어떤 책임을 가지는지)** 를 보여 줘야 합니다.
 :::
 
-## 비즈니스 엔티티 및 상호 참조 관계
+## 비즈니스 entity와 상호 참조
 
-앱에서 가장 중요한 타입 중 하나는 비즈니스 엔티티, 즉 앱에서 다루는 객체들 입니다. 
-예를 들어, 음악 스트리밍 앱에서는 _Song_, _Album_ 등이 비즈니스 엔티티가 될 수 있습니다. 
+앱에서 가장 중요한 타입은 **비즈니스 entity**, 즉 도메인 객체 타입입니다.  
+예를 들어, 음악 스트리밍 서비스를 만든다고 하면 _Song_, _Album_ 같은 타입이 entity에 해당합니다.
 
-비즈니스 엔티티는 주로 백엔드 바탕이기 떄문에, 백엔드 응답을 타입으로 정의하는 것이 첫 번째 단계입니다. 
-각 엔드포인트에 대한 요청 함수와 그 응답을 타입으로 지정하는 것이 좋습니다, 추가적인 타입 안정성을 위해 [Zod][ext-zod]와 같은 스키마 검증 라이브러리를 사용해 응답을 검증할 수도 있습니다. 
+### 1. 백엔드 Response 타입
 
-예를 들어, 모든 요청을 Shared에 보관하는 경우 이렇게 작성할 수 있습니다.
+먼저 백엔드에서 내려오는 데이터를 기준으로 타입을 정의합니다.  
+필요하다면 [Zod][ext-zod] 같은 **schema 기반 유효성 검사 라이브러리**를 사용해 추가적인 타입 안전성을 확보할 수도 있습니다.
 
 ```ts title="shared/api/songs.ts"
 import type { Artist } from "./artists";
 
 interface Song {
-  id: number;
-  title: string;
-  artists: Array<Artist>;
+    id: number;
+    title: string;
+    artists: Array<Artist>;
 }
 
 export function listSongs() {
-  return fetch('/api/songs').then((res) => res.json() as Promise<Array<Song>>);
+    return fetch("/api/songs").then(
+        (res) => res.json() as Promise<Array<Song>>,
+    );
 }
 ```
 
-`Song` 타입은 다른 엔티티인 `Artist`를 참조합니다. 이와 같이 요청 관련 코드들을 Shared에 관리하면, 타입들의 서로 얽혀 있을 떄 관리가 용이해집니다. 만약 이 함수를 `entities/song/api`에 보관했다면, `entities/artist`에서 간단히 가져오는 것이 어려웠을 것 입니다. FSD 구조에서는 [레이어별 import 규칙][import-rule-on-layers]을 통해 슬라이스 간의 교차 import를 제한하고 있기 떄문입니다:
+예를 들어, `Song` 타입이 다른 entity인 `Artist`를 참조한다고 가정해 봅시다.
 
-> 슬라이스 안에 있는 모듈은 계층적으로 더 낮은 레이어에 위치한 슬라이스만 가져올 수 있습니다.
+이때 **Request/Response 관련 코드를 Shared layer에 두면**,  
+이러한 상호 참조 관계를 한곳에서 관리할 수 있어서 유지보수가 훨씬 쉬워집니다.
 
-이 문제를 해결하기 위한 두 가지 방법은 다음과 같습니다:
+반대로 이 Request 함수를 `entities/song/api` 내부에 두면 다음과 같은 문제가 생깁니다.
 
-1. **타입 매개변수화**  
-   타입이 다른 엔티티와 연결될 때, 타입 매개변수를 통해 처리할 수 있습니다. 예를 들어, Song 타입에 ArtistType이라는 제약 조건을 설정할 수 있습니다.
+`entities/artist` slice에서 `Song` 타입을 **참조하고 싶어도**,  
+FSD의 [layer별 import 규칙][import-rule-on-layers] 때문에 **동일 layer 간(import)** 의존은 금지됩니다.
 
-   ```ts title="entities/song/model/song.ts"
-   interface Song<ArtistType extends { id: string }> {
-     id: number;
-     title: string;
-     artists: Array<ArtistType>;
-   }
-   ```
+- 규칙 요약:
+    > _“한 slice의 모듈은 자신보다 **아래 layer**에 있는 slice만 import할 수 있다.”_
 
-   이 방법은 일부 타입에 더 적합합니다. 예를 들어, `Cart = { items: Array<Product> }`처럼 간단한 타입은 다양한 제품 타입을 지원하기 쉽게 할 수 있습니다. 하지만 `Country`와 `City`처럼 더 밀접하게 연결된 타입은 분리하기 어렵습니다.
+즉, 같은 layer에 있는 entity끼리는 직접 cross-import 할 수 없기 때문에 **Artist → Song** 의존을 바로 연결하기가 어렵습니다.  
+이런 경우에는 제네릭 타입 매개변수를 사용하거나, `@x` Public API 같은 패턴을 사용해 우회하는 전략이 필요합니다.
 
-2. **Cross-import (공개 API를 사용해 관리하기)**  
-    FSD에서 엔티티 간 cross-imports를 허용하기 위해서는 공개 API를 사용할 수 있습니다. 예를 들어, `song`, `artist`, `playlist`라는 엔티티가 있고, 후자의 두 엔티티가 `song`을 참조해야 한다고 가정합니다. 이 경우, `song` 엔티티 내에 `artist`와 `playlist`용 공개 API를 따로 `@x` 표기를 만들어 사용할 수 있습니다.
+### 2. 상호 참조 해결 전략
 
-   - 📂 entities
-     - 📂 song
-       - 📂 @x
-         - 📄 artist.ts (artist entities를 가져오기 위한 public API)
-         - 📄 playlist.ts (playlist.ts (playlist entities를 가져오기 위한 public API))
-       - 📄 index.ts (일반적인 public API)
-   
-    파일 `📄 entities/song/@x/artist.ts`의 내용은 `📄 entities/song/index.ts`와 유사합니다: 
+entity끼리 서로를 참조해야 할 때 사용할 수 있는 대표적인 전략은 다음 두 가지입니다.
 
-   ```ts title="entities/song/@x/artist.ts"
-   export type { Song } from "../model/song.ts";
-   ```
+#### 1. 제네릭 타입 매개변수화
 
-   따라서 `📄 entities/artist/model/artist.ts` 파일은 다음과 같이 `Song`을 가져올 수 있습니다:
+entity 간에 연결이 필요한 타입에 제네릭 타입 매개변수를 선언하고, 필요한 제약 조건을 부여합니다.  
+예를 들어, Song 타입에 `ArtistType`이라는 제네릭을 두고 제약을 걸 수 있습니다.
 
-   ```ts title="entities/artist/model/artist.ts"
-   import type { Song } from "entities/song/@x/artist";
+```ts title="entities/song/model/song.ts"
+interface Song<ArtistType extends { id: string }> {
+    id: number;
+    title: string;
+    artists: Array<ArtistType>;
+}
+```
 
-   export interface Artist {
-     name: string;
-     songs: Array<Song>;
-   }
-   ```
+이 방식은 `Cart = { items: Product[] }`처럼 구조가 비교적 단순한 타입과 잘 어울립니다.  
+반면, `Country-City`처럼 서로 강하게 결합된 구조는 깔끔하게 분리하기 어려울 수 있습니다.
 
-   이렇게 엔티티 간 명시적으로 연결을 해두면 의존 관계를 파악하고 도메인 분리 수준을 유지하기 쉬워집니다. 
+#### 2. Cross-import (Public API(@x) 활용)
+
+FSD에서 entity 간 의존을 허용하려면,  
+참조 대상 entity 내부에 **다른 entity 전용 Public API**를 `@x` 디렉터리에 둡니다.
+
+예를 들어 `artist`와 `playlist`가 모두 `song`을 참조해야 한다면,  
+다음과 같은 구조를 만들 수 있습니다.
+
+```bash
+- 📂 entities
+    - 📂 song
+        - 📂 @x
+            - 📄 artist.ts (artist entity용 public API)
+            - 📄 playlist.ts (playlist entity용 public API)
+        - 📄 index.ts (기본 public API)
+```
+
+`📄 entities/song/@x/artist.ts` 파일의 내용은
+`📄 entities/song/index.ts`와 매우 비슷하지만,  
+**artist에서 사용할 수 있는 부분**만 노출하는 역할을 합니다.
+
+```ts title="entities/song/@x/artist.ts"
+export type { Song } from "../model/song.ts";
+```
+
+이렇게 분리해 두면 `📄 entities/artist/model/artist.ts`에서 `Song`을 가져올 때,  
+다음과 같이 **의존 대상이 명확한 import**를 사용할 수 있습니다.
+
+이 방식은 entity들의 의존 관계를 코드 구조 상에서 명확하게 보여 주고,
+도메인 간 분리를 유지하는 데 도움이 됩니다.
+
+```ts title="entities/artist/model/artist.ts"
+import type { Song } from "entities/song/@x/artist";
+
+export interface Artist {
+    name: string;
+    songs: Array<Song>;
+}
+```
 
 ## 데이터 전송 객체와 mappers {#data-transfer-objects-and-mappers}
 
-데이터 전송 객체(Data Transfer Object, DTO)는 백엔드에서 오는 데이터의 구조를 나타내는 용어입니다. 떄로는 DTO를 그대로 사용하는 것이 편리할 수 있지만, 경우에 따라 프론트엔드에서는 불편할 수 있습니다. 이때 매퍼를 사용해 DTO를 더 편리한 형태로 변환합니다. 
+데이터 전송 객체(Data Transfer Object, DTO)는
+**백엔드에서 전달되는 데이터 구조 그대로를 표현한 타입**입니다.
 
-### DTO의 위치
+간단한 경우에는 DTO를 프론트엔드에서 그대로 사용해도 되지만,
+실제 UI나 도메인 로직에서는 다루기 불편한 경우도 많습니다.  
+이럴 때 `mapper`를 사용해 DTO를 **프론트엔드 친화적인 형태**로 변환합니다.
 
-백엔드 타입이 별도의 패키지에 있는 경우(예: 프론트엔드와 백엔드에서 코드를 공유하는 경우) DTO를 해당 패키지에서 가져와 사용하면 됩니다. 백엔드와 프론트엔드 간 코드 공유가 없다면, 프론트엔드 코드베이스 어딘가에 DTO를 보관해야 하는데, 이를 아래에서 다루어 보겠습니다.
+### DTO 배치 위치
 
-`shared/api`에 요청 함수가 있다면, DTO 역시 해당 함수 바로 옆에 두는 것이 좋습니다:
+DTO를 어디에 둘지는 백엔드와의 코드 공유 방식에 따라 달라집니다.
+
+- 백엔드 타입을 별도 패키지로 공유하고 있다면
+  → 해당 패키지에서 DTO를 가져와서 사용하면 됩니다.
+- 코드 공유가 없다면
+  → 프론트엔드 코드베이스 안 어딘가에 DTO를 정의해야 합니다.
+
+Request 함수가 `shared/api`에 있다면,
+DTO도 가능한 한 **바로 옆**에 두는 것을 권장합니다.
 
 ```ts title="shared/api/songs.ts"
 import type { ArtistDTO } from "./artists";
 
 interface SongDTO {
-  id: number;
-  title: string;
-  artist_ids: Array<ArtistDTO["id"]>;
+    id: number;
+    title: string;
+    artist_ids: Array<ArtistDTO["id"]>;
 }
 
 export function listSongs() {
-  return fetch('/api/songs').then((res) => res.json() as Promise<Array<SongDTO>>);
+    return fetch("/api/songs").then(
+        (res) => res.json() as Promise<Array<SongDTO>>,
+    );
 }
 ```
 
-앞에서 언급한 것처럼, 요청과 DTO를 shared에 두면 다른 DTO를 참조하기가 용이합니다.
+### mapper 배치 위치
 
-### Mappers의 위치
-
-Mappers는 DTO를 받아 변환하는 역할을 하므로, DTO 정의와 가까운 위치에 두는 것이 좋습니다. 만약 요청과 DTO가 `shared/api`에 정의되어 있다면, mappers도 그곳에 위치하는 것이 적절합니다.
+mapper는 DTO를 인자로 받아 변환하는 함수이므로,
+DTO 정의와 **최대한 가까운 위치**에 두는 것이 좋습니다.
 
 ```ts title="shared/api/songs.ts"
 import type { ArtistDTO } from "./artists";
 
 interface SongDTO {
-  id: number;
-  title: string;
-  disc_no: number;
-  artist_ids: Array<ArtistDTO["id"]>;
+    id: number;
+    title: string;
+    disc_no: number;
+    artist_ids: Array<ArtistDTO["id"]>;
 }
 
 interface Song {
-  id: string;
-  title: string;
-  /** 노래의 전체 제목, 디스크 번호까지 포함된 제목입니다. */
-  fullTitle: string;
-  artistIds: Array<string>;
+    id: string;
+    title: string;
+    /** 디스크 번호까지 포함한 전체 제목 */
+    fullTitle: string;
+    artistIds: Array<string>;
 }
 
 function adaptSongDTO(dto: SongDTO): Song {
-  return {
-    id: String(dto.id),
-    title: dto.title,
-    fullTitle: `${dto.disc_no} / ${dto.title}`,
-    artistIds: dto.artist_ids.map(String),
-  };
+    return {
+        id: String(dto.id),
+        title: dto.title,
+        fullTitle: `${dto.disc_no} / ${dto.title}`,
+        artistIds: dto.artist_ids.map(String),
+    };
 }
 
 export function listSongs() {
-  return fetch('/api/songs').then(async (res) => (await res.json()).map(adaptSongDTO));
+    return fetch("/api/songs").then(async (res) =>
+        (await res.json()).map(adaptSongDTO),
+    );
 }
 ```
 
-요청과 상태 관리 코드가 엔티티 슬라이스에 정의되어 있는 경우, mappers 역시 해당 슬라이스 내에 두는 것이 좋습니다. 이때 슬라이스 간 교차 참조가 발생하지 않도록 주의해야 합니다.
+Request와 DTO가 `shared/api`에 있다면 → mapper도 `shared/api`에 둡니다.  
+Request와 store가 `entity slice` 내부에 있다면 → mapper도 해당 slice 안에 두되,  
+layer 간 cross-import 제한을 반드시 고려해야 합니다.
 
 ```ts title="entities/song/api/dto.ts"
 import type { ArtistDTO } from "entities/artist/@x/song";
 
 export interface SongDTO {
-  id: number;
-  title: string;
-  disc_no: number;
-  artist_ids: Array<ArtistDTO["id"]>;
+    id: number;
+    title: string;
+    disc_no: number;
+    artist_ids: Array<ArtistDTO["id"]>;
 }
 ```
 
@@ -196,20 +258,20 @@ export interface SongDTO {
 import type { SongDTO } from "./dto";
 
 export interface Song {
-  id: string;
-  title: string;
-  /** 노래의 전체 제목, 디스크 번호까지 포함된 제목입니다. */
-  fullTitle: string;
-  artistIds: Array<string>;
+    id: string;
+    title: string;
+    /** 노래의 전체 제목, 디스크 번호까지 포함된 제목입니다. */
+    fullTitle: string;
+    artistIds: Array<string>;
 }
 
 export function adaptSongDTO(dto: SongDTO): Song {
-  return {
-    id: String(dto.id),
-    title: dto.title,
-    fullTitle: `${dto.disc_no} / ${dto.title}`,
-    artistIds: dto.artist_ids.map(String),
-  };
+    return {
+        id: String(dto.id),
+        title: dto.title,
+        fullTitle: `${dto.disc_no} / ${dto.title}`,
+        artistIds: dto.artist_ids.map(String),
+    };
 }
 ```
 
@@ -217,7 +279,9 @@ export function adaptSongDTO(dto: SongDTO): Song {
 import { adaptSongDTO } from "./mapper";
 
 export function listSongs() {
-  return fetch('/api/songs').then(async (res) => (await res.json()).map(adaptSongDTO));
+    return fetch("/api/songs").then(async (res) =>
+        (await res.json()).map(adaptSongDTO),
+    );
 }
 ```
 
@@ -226,68 +290,75 @@ import { createSlice, createEntityAdapter } from "@reduxjs/toolkit";
 
 import { listSongs } from "../api/listSongs";
 
-export const fetchSongs = createAsyncThunk('songs/fetchSongs', listSongs);
+export const fetchSongs = createAsyncThunk("songs/fetchSongs", listSongs);
 
 const songAdapter = createEntityAdapter();
 const songsSlice = createSlice({
-  name: "songs",
-  initialState: songAdapter.getInitialState(),
-  reducers: {},
-  extraReducers: (builder) => {
-    builder.addCase(fetchSongs.fulfilled, (state, action) => {
-      songAdapter.upsertMany(state, action.payload);
-    })
-  },
+    name: "songs",
+    initialState: songAdapter.getInitialState(),
+    reducers: {},
+    extraReducers: (builder) => {
+        builder.addCase(fetchSongs.fulfilled, (state, action) => {
+            songAdapter.upsertMany(state, action.payload);
+        });
+    },
 });
 ```
 
-### 중첩된 DTO 처리 방법
+### 중첩 DTO 처리
 
-백엔드 응답에 여러 엔티티가 포함된 경우 문제가 될 수 있습니다. 예를 들어, 곡 정보에 저자의 ID뿐만 아니라 저자 객체 전체가 포함된 경우가 있을 수 있습니다. 이런 상황에서는 엔티티 간의 상호 참조를 피하기 어렵습니다. 데이터를 지우거나 백엔드 팀과 협의하지 않는 한, 이러한 경우에는 슬라이스 간 간접적인 연결 대신 명시적인 교차 참조를 사용하는 것이 좋습니다. 이를 위해 `@x` 표기법을 활용할 수 있으며, 다음은 Redux Toolkit을 사용한 예시입니다:
+하나의 백엔드 Response 안에 여러 entity가 함께 포함되는 경우도 있습니다.  
+예를 들어 곡 정보에 저자(Author) 객체 전체가 포함되는 식입니다.
+
+이럴 때 entity들끼리는 **서로의 존재를 완전히 모른 채**
+DTO 안에서만 연결될 수도 있습니다.
+
+이 경우 간접 연결(middleware 등)로 우회하는 것보다,  
+`@x` 표기법을 활용해 **명시적으로 cross-import**를 허용하는 편이 나을 때가 많습니다.  
+(예: Redux Toolkit + Normalizr를 조합해 사용하는 패턴)
 
 ```ts title="entities/song/model/songs.ts"
 import {
-  createSlice,
-  createEntityAdapter,
-  createAsyncThunk,
-  createSelector,
-} from '@reduxjs/toolkit'
-import { normalize, schema } from 'normalizr'
+    createSlice,
+    createEntityAdapter,
+    createAsyncThunk,
+    createSelector,
+} from "@reduxjs/toolkit";
+import { normalize, schema } from "normalizr";
 
 import { getSong } from "../api/getSong";
 
-// Normalizr의 entities 스키마 정의
-export const artistEntity = new schema.Entity('artists')
-export const songEntity = new schema.Entity('songs', {
-  artists: [artistEntity],
-})
+// Normalizr entity schema
+export const artistEntity = new schema.Entity("artists");
+export const songEntity = new schema.Entity("songs", {
+    artists: [artistEntity],
+});
 
-const songAdapter = createEntityAdapter()
+const songAdapter = createEntityAdapter();
 
 export const fetchSong = createAsyncThunk(
-  'songs/fetchSong',
-  async (id: string) => {
-    const data = await getSong(id)
-    // 데이터를 정규화하여 리듀서가 예측 가능한 payload를 로드할 수 있도록 합니다:
-    // `action.payload = { songs: {}, artists: {} }`
-    const normalized = normalize(data, songEntity)
-    return normalized.entities
-  }
-)
+    "songs/fetchSong",
+    async (id: string) => {
+        const data = await getSong(id);
+        // 데이터를 정규화하여 리듀서가 예측 가능한 payload를 로드할 수 있도록 합니다:
+        const normalized = normalize(data, songEntity); // `action.payload = { songs: {}, artists: {} }`
+        return normalized.entities;
+    },
+);
 
 export const slice = createSlice({
-  name: 'songs',
-  initialState: songAdapter.getInitialState(),
-  reducers: {},
-  extraReducers: (builder) => {
-    builder.addCase(fetchSong.fulfilled, (state, action) => {
-      songAdapter.upsertMany(state, action.payload.songs)
-    })
-  },
-})
+    name: "songs",
+    initialState: songAdapter.getInitialState(),
+    reducers: {},
+    extraReducers: (builder) => {
+        builder.addCase(fetchSong.fulfilled, (state, action) => {
+            songAdapter.upsertMany(state, action.payload.songs);
+        });
+    },
+});
 
-const reducer = slice.reducer
-export default reducer
+const reducer = slice.reducer;
+export default reducer;
 ```
 
 ```ts title="entities/song/@x/artist.ts"
@@ -295,67 +366,85 @@ export { fetchSong } from "../model/songs";
 ```
 
 ```ts title="entities/artist/model/artists.ts"
-import { createSlice, createEntityAdapter } from '@reduxjs/toolkit'
+import { createSlice, createEntityAdapter } from "@reduxjs/toolkit";
 
-import { fetchSong } from 'entities/song/@x/artist'
+import { fetchSong } from "entities/song/@x/artist";
 
-const artistAdapter = createEntityAdapter()
+const artistAdapter = createEntityAdapter();
 
 export const slice = createSlice({
-  name: 'users',
-  initialState: artistAdapter.getInitialState(),
-  reducers: {},
-  extraReducers: (builder) => {
-    builder.addCase(fetchSong.fulfilled, (state, action) => {
-      // 같은 fetch 결과를 처리하며, 여기서 artists를 삽입합니다.
-      artistAdapter.upsertMany(state, action.payload.artists)
-    })
-  },
-})
+    name: "users",
+    initialState: artistAdapter.getInitialState(),
+    reducers: {},
+    extraReducers: (builder) => {
+        builder.addCase(fetchSong.fulfilled, (state, action) => {
+            // 같은 fetch 결과를 처리하며, 여기서 artists를 삽입합니다.
+            artistAdapter.upsertMany(state, action.payload.artists);
+        });
+    },
+});
 
-const reducer = slice.reducer
-export default reducer
+const reducer = slice.reducer;
+export default reducer;
 ```
 
-이 방법은 슬라이스 분리의 이점을 다소 제한할 수 있지만, 우리가 제어할 수 없는 두 엔티티 간의 관계를 명확하게 나타냅니다. 만약 이러한 엔티티가 리팩토링되어야 한다면, 함께 리팩토링해야 할 것입니다.
+이 방법을 사용하면 slice 간 **완전한 독립성**은 다소 줄어들지만,  
+어차피 강하게 묶여 있는 두 entity의 관계를
+코드 상에서 명확하게 드러낼 수 있다는 장점이 있습니다.
 
-## 전역 타입과 Redux 
+즉, 나중에 둘 중 하나를 수정할 때
+**연결된 entity까지 함께 리팩토링해야 한다는 사실**을
+더 쉽게 인지할 수 있습니다.
 
-전역 타입은 애플리케이션 전반에서 사용되는 타입을 의미하며, 크게 두 가지로 나눌 수 있습니다:<br/>
-1. 애플리케이션 특성이 없는 제너릭 타입
-2. 애플리케이션 전체에 알고 있어야 하는 타입 
+## Global 타입과 Redux
 
-첫 번째 경우에는 관련 타입을 Shared 폴더 안에 적절한 세그먼트로 배치하면 됩니다. 예를 들어, 분석 전역 변수를 위한 인터페이스가 있다면 `shared/analytics`에 두는 것이 좋습니다.
+Global 타입은 애플리케이션 전역에서 사용되는 타입을 말하며,
+크게 두 가지 종류로 나눌 수 있습니다.
+
+1. 애플리케이션에 특화되지 않은 **제너릭 타입**
+2. 애플리케이션 전체가 알고 있어야 하는 **전역 도메인 타입**
+
+### 1) 제너릭 타입
+
+첫 번째 경우(특정 도메인에 묶이지 않은 제너릭 타입)는 `Shared` 폴더 안의 적절한 segment에 배치하면 됩니다.  
+예를 들어, **분석(analytics) 관련 전역 인터페이스**라면 `shared/analytics`에 두는 식입니다.
 
 :::warning
-
-경고: `shared/types` 폴더를 생성하지 않는 것이 좋습니다. "타입"이라는 공통된 속성으로 관련 없는 항목들을 그룹화하면, 프로젝트에서 코드를 검색할 때 효율성이 떨어질 수 있습니다.
-
+`shared/types` 폴더는 만들지 않는 것을 권장합니다.  
+**타입이기 때문**이라는 이유 하나로 서로 무관한 타입들을 모아두면, 나중에 어떤 타입이 어디에 속하는지 찾기 어렵고,  
+구조도 쉽게 흐트러집니다.
 :::
 
-두 번째 경우는 Redux를 사용하지만 RTK가 없는 프로젝트에서 자주 발생합니다. 최종 스토어 타입은 모든 리듀서를 추가한 후에만 사용 가능하지만, 이 스토어 타입은 앱 전체에서 사용하는 셀렉터에 필요합니다. 예를 들어, 일반적인 스토어 정의는 다음과 같습니다:
+### 2) 애플리케이션 Global 타입
+
+이 부분은 특히 `Redux(순수 Redux + RTK 미사용)` 프로젝트에서 자주 등장합니다.  
+모든 reducer를 합쳐야 비로소 store 타입이 완성되는데, 이 타입은 애플리케이션 전역에서 selector에 필요하게 됩니다.
 
 ```ts title="app/store/index.ts"
-import { combineReducers, rootReducer } from "redux";
+import { combineReducers, createStore } from "redux";
 
 import { songReducer } from "entities/song";
 import { artistReducer } from "entities/artist";
 
 const rootReducer = combineReducers(songReducer, artistReducer);
-
 const store = createStore(rootReducer);
 
 type RootState = ReturnType<typeof rootReducer>;
 type AppDispatch = typeof store.dispatch;
 ```
 
-`shared/store`에서 `useAppDispatch`와 `useAppSelector`와 같은 타입이 지정된 Redux 훅을 사용하는 것이 좋지만, [레이어에 대한 import 규칙][import-rule-on-layers] 떄문에 App 레이어에서 `RootState`와 `AppDispatch`를 import 할 수 없습니다. 
+이때, `shared/store`에서 `useAppDispatch`, `useAppSelector` 같은
+커스텀 훅을 만들고 싶어도,  
+[import 규칙][import-rule-on-layers]에 의해
+App layer에 있는 `RootState`, `AppDispatch` 타입을 바로 가져올 수 없습니다.
 
-> 슬라이스의 모듈은 더 낮은 레이어에 위치한 다른 슬라이스만 import 할 수 있습니다.
+> 한 slice의 module은 자신보다 하위 layer에 있는 slice만 import할 수 있습니다.
 
-이 경우 권장되는 해결책은 Shared와 App 레이어 간에 암묵적인 의존성을 만드는 것입니다. `RootState`와 `AppDispatch` 두 타입은 유지보수 필요성이 적고 Redux를 사용하는 개발자들에게 익숙하므로 큰 문제 없이 사용할 수 있습니다.
+#### 권장 해결책
 
-TypeScript에서는 다음과 같이 타입을 전역으로 선언할 수 있습니다: 
+이 경우에는 **Shared ↔ App layer 간에 한정된 암묵적 의존성을 허용**하는 것이 현실적인 해결책입니다.  
+`RootState`, `AppDispatch` 타입은 자주 바뀌지 않고, Redux 사용 경험이 있는 개발자에게는 매우 익숙한 개념이기 때문에,  
+이 정도의 의존성은 유지보수 부담이 크지 않습니다.
 
 ```ts title="app/store/index.ts"
 /* 이전 코드 블록과 동일한 내용입니다… */
@@ -365,75 +454,115 @@ declare type AppDispatch = typeof store.dispatch;
 ```
 
 ```ts title="shared/store/index.ts"
-import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
+import {
+    useDispatch,
+    useSelector,
+    type TypedUseSelectorHook,
+} from "react-redux";
 
-export const useAppDispatch = useDispatch.withTypes<AppDispatch>()
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 ```
 
-## 열거형 
+## 열거형(enum)
 
-**일반적으로 열거형(enum)은 사용되는 위치와 최대한 가까운 곳에 정의하는 것이 좋습니다**. 열거형이 특정 기능과 관련된 값을 나타낸다면, 해당 기능 내에 정의해야 합니다.
+enum 타입은 다음 원칙에 따라 배치하는 것을 권장합니다.
 
-세그먼트 선택도 사용 위치에 따라 달라져야 합니다. 예를 들어, 화면에서 토스트 위치를 나타내는 열거형이라면 ui 세그먼트에 두는 것이 좋고, 백엔드 응답 상태 등을 나타낸다면 api 세그먼트에 두는 것이 적합합니다.
+- 가능한 한 **가장 가까운 사용 위치**에 정의합니다.
+- 어떤 segment에 둘지는 **용도 기준**으로 결정합니다.
+    - UI toast 상태를 표현하는 enum → `ui` segment
+    - 백엔드 Response 상태를 표현하는 enum → `api` segment
 
-프로젝트 전반에서 공통으로 사용되는 열거형도 있습니다. 예를 들어, 일반적인 백엔드 응답 상태나 디자인 시스템 토큰 등이 있습니다. 이 경우 Shared에 두되, 열거형이 나타내는 것을 기준으로 세그먼트를 선택하면 됩니다 (`api`는 응답 상태, `ui`는 디자인 토큰 등).
+프로젝트 전역에서 공통으로 쓰는 값(예: Response 상태, 디자인 토큰 등)은
+`Shared` layer에 두고,  
+역할에 따라 `api`, `ui` 등 적절한 segment를 선택합니다.
 
-## 타입 검증 스키마와 Zod
+## 타입 검증 Schema와 Zod
 
-데이터가 특정 형태나 제약 조건을 충족하는지 검증하려면 검증 스키마를 정의할 수 있습니다. TypeScript에서는 [Zod][ext-zod]와 같은 라이브러리를 많이 사용합니다. 검증 스키마는 가능하면 사용하는 코드와 같은 위치에 두는 것이 좋습니다.
+데이터의 형태와 제약 조건을 검증하려면
+[Zod][ext-zod] 같은 라이브러리로 **validation schema**를 정의합니다.
 
-검증 스키마는 데이터를 파싱하며, 파싱에 실패하면 오류를 발생시킵니다.([Data transfoer objects and mappers](#data-transfer-objects-and-mappers) 토론을 참조하세요.) 가장 일반적인 검증 사례 중 하나는 백엔드에서 오는 데이터에 대한 것입니다. 데이터가 스키마와 일치하지 않는 경우 요청을 실패시키기를 원하기 때문에, 보통 `api` 세그먼트에 스키마를 두는 것이 좋습니다.
+schema의 위치는 **어디에서 쓰이는 데이터인지**에 따라 결정합니다.
 
-사용자 입력(예: 폼)으로 데이터를 받을 경우, 입력된 데이터에 대해 바로 검증이 이루어져야 합니다. 이 경우 스키마를 `ui` 세그먼트 내 폼 컴포넌트 옆에 두거나, `ui` 세그먼트가 너무 복잡하다면 `model` 세그먼트에 둘 수 있습니다.
+- 백엔드 Response 검증 → `api` segment 근처
+- 폼 입력 값 검증 → `ui` segment (또는 복잡한 경우 `model` segment)
 
-## 컴포넌트 props와 context의 타입 정의 
+검증 schema는 DTO를 받아 파싱하고,
+schema와 맞지 않으면 즉시 에러를 던집니다.  
+([Data transfer objects and mappers](#data-transfer-objects-and-mappers) 섹션도 참고하세요.)
 
-보통 props나 context 인터페이스는 이를 사용하는 컴포넌트나 컨텍스트와 같은 파일에 두는 것이 가장 좋습니다. 만약 Vue나 Svelte처럼 단일 파일 컴포넌트를 사용하는 프레임워크에서 여러 컴포넌트 간에 해당 인터페이스를 공유해야 한다면, `ui` 세그먼트 내 동일 폴더에 별도의 파일을 만들어 정의할 수 있습니다.
+특히 백엔드 Response가 예상한 schema와 일치하지 않을 때
+request를 실패시키도록 구현하면,  
+버그를 비교적 이른 시점에 발견할 수 있습니다.
 
-예를 들어, React의 JSX에서는 다음과 같이 정의합니다:
+이 때문에 검증 schema는 보통 `api` segment에 두는 편이 일반적입니다.
+
+## Component props, context 타입
+
+일반적으로 Component의 props 타입과 context 타입은
+**해당 Component/Context를 정의한 파일과 같은 파일**에 둡니다.
+
+만약 단일 파일(Vue·Svelte 등)에서
+여러 Component가 같은 Interface를 공유해야 한다면,  
+같은 폴더(보통 `ui` segment)에 별도의 타입 파일을 만드는 방식도 사용할 수 있습니다.
 
 ```ts title="pages/home/ui/RecentActions.tsx"
 interface RecentActionsProps {
-  actions: Array<{ id: string; text: string }>;
+    actions: Array<{ id: string; text: string }>;
 }
 
 export function RecentActions({ actions }: RecentActionsProps) {
-  /* … */
+    /* … */
 }
 ```
 
-Vue에서 인터페이스를 별도 파일에 저장한 예는 다음과 같습니다:
+Vue에서 Interface를 별도 파일에 저장하는 패턴이 대표적인 예입니다.
 
 ```ts title="pages/home/ui/RecentActionsProps.ts"
 export interface RecentActionsProps {
-  actions: Array<{ id: string; text: string }>;
+    actions: Array<{ id: string; text: string }>;
 }
 ```
 
 ```html title="pages/home/ui/RecentActions.vue"
 <script setup lang="ts">
-  import type { RecentActionsProps } from "./RecentActionsProps";
+    import type { RecentActionsProps } from "./RecentActionsProps";
 
-  const props = defineProps<RecentActionsProps>();
+    const props = defineProps<RecentActionsProps>();
 </script>
 ```
 
-## Ambient 선언 파일(*.d.ts) 
+## Ambient 선언 파일(\*.d.ts)
 
-[Vite][ext-vite]나 [ts-reset][ext-ts-reset] 같은 일부 패키지는 앱 전반에서 작동하기 위해 Ambient 선언 파일을 필요로 합니다. 이러한 파일들은 보통 크거나 복잡하지 않기 때문에 `src/` 폴더에 두어도 괜찮습니다. 더 정리된 구조를 위해 `app/ambient/` 폴더에 두는 것도 좋은 방법입니다.
+[Vite][ext-vite]나 [ts-reset][ext-ts-reset] 같은 일부 패키지는
+전역 Ambient 선언이 필요합니다.  
+내용이 **단순하다면** `src/`에 바로 두어도 괜찮습니다.  
+디렉터리 구조를 **더 명확히** 하고 싶다면 `app/ambient/`에 두는 것도 좋습니다.
 
-타이핑이 없는 패키지인 경우, 해당 패키지를 미타입으로 선언하거나 직접 타이핑을 작성할 수 있습니다. 이러한 타이핑을 위한 좋은 위치는  `shared/lib` 폴더 내의 `shared/lib/untyped-packages` 폴더입니다. 이 폴더에 `%LIBRARY_NAME%.d.ts` 파일을 생성하고 필요한 타입을 선언합니다
+타입 정의가 없는 외부 패키지에 대해서는
+`shared/lib/untyped-packages/%LIB%.d.ts` 파일을 만들고,  
+그 안에 직접 타입을 선언합니다.
+
+### 타입이 없는 외부 패키지
+
+타입 정의가 없는 외부 라이브러리는 `declare module`을 사용해 미타입으로 선언하거나 직접 타입을 정의해야 합니다.  
+이때 권장 위치는 `shared/lib/untyped-packages`입니다.
+
+이 폴더 안에 **`%LIBRARY_NAME%.d.ts`** 파일을 만들고,
+해당 라이브러리에 필요한 타입들을 선언하세요.
 
 ```ts title="shared/lib/untyped-packages/use-react-screenshot.d.ts"
-// 이 라이브러리는 타입 정의가 없으며 작성하는 것을 생략했습니다.
+// 공식 타입 정의가 없는 라이브러리 예시
 declare module "use-react-screenshot";
 ```
 
-## 타입 자동 생성 
+## 타입 자동 생성
 
-외부 소스로부터 타입을 생성하는 일은 흔히 발생합니다. 예를 들어, OpenAPI 스키마로부터 백엔드 타입을 생성하는 경우가 있습니다.<br/>
-이러한 타입을 위한 전용 위치를 코드베이스에 만드는 것이 좋습니다. 예를 들어 `shared/api/openapi`와 같은 위치가 적합합니다. 이상적으로는 이러한 파일이 무엇인지, 어떻게 재생성하는지 등을 설명하는 README 파일도 포함하는 것이 좋습니다.
+외부 schema(OpenAPI 등)로부터 타입을 자동 생성하는 경우에는 전용 디렉터리를 두는 것이 좋습니다.  
+예를 들어 `shared/api/openapi`와 같은 폴더를 만들고, `README.md`에 다음 내용을 함께 기록해 두는 것을 추천합니다.
+
+- 이 폴더에 있는 파일들의 용도
+- 타입을 재생성하는 방법 (스크립트 명령어 등)
 
 [import-rule-on-layers]: /docs/reference/layers#import-rule-on-layers
 [ext-type-fest]: https://github.com/sindresorhus/type-fest

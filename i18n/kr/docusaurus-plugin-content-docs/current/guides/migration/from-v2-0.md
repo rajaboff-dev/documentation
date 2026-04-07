@@ -1,70 +1,96 @@
 ---
-sidebar_position: 3
+sidebar_position: 5
 ---
 
-# v2.0에서 v2.1로의 마이그레이션
+# Migration from v2.0 to v2.1
 
-v2.1의 핵심 변화는 페이지 중심(Page-First) 접근 방식을 통한 인터페이스 구조화입니다.
+v2.1의 핵심 변화는 Page 중심(Page-First) 접근 방식을 기반으로 인터페이스 구조를 재정비한 것입니다.
 
-### v2.0 방식
-이전 버전에서는:
-- Entity와 Feature을 최소 단위로 분해
-- 이를 기반으로 Widget과 Page를 구성
-- 대부분의 로직이 Entity와 Feature 계층에 집중
-- Page는 단순 조합 계층으로 취급
+## v2.0 접근 방식
 
-### v2.1 방식
-새로운 버전에서는:
-- Page를 시작점으로 설정
-- UI와 비즈니스 로직을 우선적으로 Page 내에 구현
-- Shared 계층은 순수하게 재사용 가능한 기반 코드만 관리
-- 여러 페이지에서 공통으로 사용되는 로직만 하위 계층으로 분리
+v2.0에서는 애플리케이션을 **Entity**와 **Feature** 단위로 세분화하여 구성했습니다.  
+화면을 이루는 가장 작은 단위(entity 표현, 상호작용 요소 등)를 잘게 나눈 뒤,  
+이를 **Widget**으로 조합하고, 최종적으로 **Page**를 구성하는 방식이었습니다.
 
-Feature-Sliced Design(v2.1)에서는 Entity 간 Cross Import를 표준화하기 위해 `@x` 표기법이 도입되었습니다.
+이 방식은 재사용성과 모듈화 측면에서 장점이 있었지만, 다음과 같은 문제가 발생했습니다:  
+비즈니스 로직이 대부분 **entity/feature** layer에 과도하게 집중되었고,  
+Page는 단순한 조합 계층으로 남아 고유한 책임이 약해지는 문제가 나타났습니다.
+
+## v2.1 접근 방식
+
+v2.1은 **Pages-First** 사고방식을 도입합니다.  
+개발자가 실제로 코드베이스를 탐색할 때 Page 단위로 구조를 파악하는 것이 더 자연스럽고,  
+구성 요소를 찾는 출발점도 대부분 Page이기 때문입니다.
+
+v2.1의 핵심 원칙은 다음과 같습니다:
+
+- Page 내부에 주요 UI와 비즈니스 로직을 배치합니다.
+- Shared layer에는 순수 재사용 요소만 유지합니다.
+- 여러 Page에서 실제로 공유되는 로직만 Feature/Entity로 분리합니다.
+
+이 접근 방식의 장점
+
+1. **Page가 명확한 책임 단위**가 되어, 코드의 역할이 분명해집니다.
+2. **Shared** layer가 불필요하게 비대해지는 것을 방지해 의존성이 간결해집니다.
+3. 공통 로직을 실제로 재사용할 때만 분리하므로 과도한 추상화가 줄어듭니다.
+
+또한 v2.1에서는 **Entity 간 cross-import**를 위한 `@x` 표기법이 **표준화**되었습니다.  
+이를 통해 import 경로를 더 명확하고 일관되게 관리할 수 있습니다.
+
 
 ## 마이그레이션 프로세스 {#how-to-migrate}
 
-v2.1은 하위 호환성을 보장하므로, v2.0 프로젝트는 수정 없이도 정상 동작합니다. 다만, 새로운 아키텍처 모델의 이점을 활용하기 위해 다음과 같은 단계적 개선을 권장합니다.
+v2.1은 하위 호환성을 제공합니다.  
+즉, 기존 v2.0 프로젝트는 **수정 없이** 그대로 동작합니다.  
+다만 v2.1의 구조적 장점을 활용하려면 아래 단계를 차례로 적용하면 됩니다.
 
-### 1. 슬라이스(Slice) 병합
+### 1. Slice 병합
 
-[Steiger][steiger] 린터(Linter)를 활용하여 코드베이스를 분석할 수 있습니다:
+v2.1 Page-First 모델에서는 **여러 Page에서 재사용되지 않는** slice는 Page 내부로 병합하는 것을 권장합니다.  
+이렇게 하면 코드 탐색이 빨라지고 유지보수 비용도 줄어듭니다.
 
-주요 린트 규칙:
-- [`insignificant-slice`][insignificant-slice]: 단일 Page에서만 사용되는 Slice 감지
-  - 해당 Slice의 코드를 관련 Page로 이동 권장
-- [`excessive-slicing`][excessive-slicing]: 과도한 Slices 분할 감지
-  - 유지보수성 향상을 위한 Slices 통합 또는 그룹화 제안
+#### Steiger로 자동 탐지하기
+
+프로젝트 루트에서 [Steiger][steiger]를 실행하면 v2.1 mental model에 맞추어 slice 사용 여부를 자동으로 분석해줍니다:
 
 ```bash
 npx steiger src
 ```
 
-Steiger를 사용하면 프로젝트에서 한 번만 사용되는 Slice들을 찾아낼 수 있습니다. 이러한 Slice들이 정말 독립적인 Slice로 존재할 필요가 있는지 검토해야 합니다.
+- [`insignificant-slice`][insignificant-slice]  
+  단일 Page에서만 사용되는 slice를 탐지합니다.
+  → **Page 내부로 병합하는 것을 권장**합니다.
+- [`excessive-slicing`][excessive-slicing]  
+  지나치게 잘게 나뉜 slice를 찾아줍니다.
+  → **유사한 slice를 통합하거나 그룹화하여 탐색성**을 높입니다.
+
+
+이 명령으로 `한 번만 쓰이는 slice` 목록이 출력됩니다.  
+이제 각 slice의 재사용 여부를 검토하고, 과하다면 해당 page로 병합하거나 비슷한 역할끼리 묶어 보세요.
 
 :::tip Slice 관리
-각 계층은 해당 계층에 속한 모든 Slices의 네임스페이스를 관리합니다. 이는 전역 변수를 관리하는 것과 비슷한 개념입니다:
-- 전역 변수는 꼭 필요한 경우에만 사용하듯이
-- Slice도 실제로 재사용되는 경우에만 독립적으로 분리하세요
-- 한 곳에서만 사용되는 코드는 해당 Page나 Feature 내부로 이동하는 것이 좋습니다
+
+Slice는 해당 layer의 namespace를 구성하는 요소입니다.  
+전역 변수를 최소화하듯, slice도 실제로 재사용되는 경우에만 독립 단위로 유지하세요.
+
+한 곳에서만 쓰이는 slice → Page 또는 Feature 내부로 이동  
+여러 Page에서 재사용되는 slice → 그대로 유지
+
 :::
 
 ### 2. Cross Import 표준화
 
-새로운 `@x-` 표기법을 사용하여 Entity 간 참조를 표준화합니다:
+v2.1에서는 Entity 간 cross-import를 위해 `@x-` 표기법을 사용합니다.
 
 ```ts title="entities/B/some/file.ts"
-// 표준화된 Cross Import 방식
+// v2.1 권장 방식
 import type { EntityA } from "entities/A/@x/B";
 ```
 
-자세한 내용은 [Cross Import를 위한 Public API][public-api-for-cross-imports] 문서를 참조하세요.
+자세한 내용은 [Public API for cross-imports][public-api-for-cross-imports] 문서를 참고하세요.
 
 [insignificant-slice]: https://github.com/feature-sliced/steiger/tree/master/packages/steiger-plugin-fsd/src/insignificant-slice
 [steiger]: https://github.com/feature-sliced/steiger
 [excessive-slicing]: https://github.com/feature-sliced/steiger/tree/master/packages/steiger-plugin-fsd/src/excessive-slicing
 [public-api-for-cross-imports]: /docs/reference/public-api#public-api-for-cross-imports
-
-
-
 
